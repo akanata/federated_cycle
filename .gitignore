@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+
+# Tile cache + rendered output
+.tile_cache/
+*.png
+*.jpg
+*.jpeg
+
+# Keep the sample data
+!examples/cycle.fit

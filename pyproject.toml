@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fit-route-map"
+version = "0.1.0"
+description = "Convert FIT activity files into an image of the route overlaid on a map."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Aaron Daniel Wong" }]
+keywords = ["fit", "garmin", "gps", "map", "route", "cycling", "openstreetmap"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Topic :: Multimedia :: Graphics",
+]
+dependencies = [
+    "fitparse>=1.2",
+    "Pillow>=9",
+    "requests>=2.25",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.urls]
+Homepage = "https://github.com/"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
