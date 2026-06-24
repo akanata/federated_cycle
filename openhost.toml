@@ -1,0 +1,25 @@
+[app]
+name = "federated-cycle"
+version = "0.1.0"
+description = "Render FIT rides over a map and serve them as OpenHost Workouts."
+
+[runtime.container]
+image = "Dockerfile"
+port = 5000
+
+[resources]
+memory_mb = 512
+cpu_cores = 1
+
+[data]
+# Persistent dir at /data/app_data/federated-cycle (uploaded FIT files, renders).
+app_data = true
+# Provisioned SQLite database; path injected as OPENHOST_SQLITE_MAIN.
+sqlite = ["main"]
+
+# Provide the OpenHost health-data service: the router proxies authenticated
+# consumer calls to "<this app>/api/v1/...".
+[[services.v2.provides]]
+service = "github.com/imbue-openhost/openhost/services/health-data"
+version = "0.1.0"
+endpoint = "/api/"

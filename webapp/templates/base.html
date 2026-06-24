@@ -10,16 +10,7 @@
   <header class="topbar">
     <a class="brand" href="{{ url_for('files.dashboard') }}">🚲 Federated Cycle</a>
     <nav>
-      {% if current_user.is_authenticated %}
-        <span class="user">{{ current_user.username }}</span>
-        <form class="inline" method="post" action="{{ url_for('auth.logout') }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="link" type="submit">Log out</button>
-        </form>
-      {% else %}
-        <a href="{{ url_for('auth.login') }}">Log in</a>
-        <a href="{{ url_for('auth.register') }}">Register</a>
-      {% endif %}
+      <span class="user">{{ config.OWNER_USERNAME }}</span>
     </nav>
   </header>
 

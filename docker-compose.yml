@@ -8,7 +8,6 @@ services:
       # Required. Generate one with:
       #   python -c "import secrets; print(secrets.token_hex(32))"
       SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY (see README) before starting}
-      TOTP_ISSUER: ${TOTP_ISSUER:-FederatedCycle}
       # Set to 1 when serving over HTTPS so session cookies are marked Secure.
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-0}
     volumes:

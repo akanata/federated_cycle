@@ -1,4 +1,4 @@
-"""Flask application factory for the FIT route-rendering web app."""
+"""Flask application factory for the FIT route-rendering / Workout-provider app."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from flask import Flask
 from sqlalchemy.exc import OperationalError
 
 from .config import Config
-from .extensions import csrf, db, login_manager
+from .extensions import csrf, db
 
 
 def create_app(config: Optional[Type[Config]] = None) -> Flask:
@@ -19,15 +19,17 @@ def create_app(config: Optional[Type[Config]] = None) -> Flask:
     _ensure_dirs(app)
 
     db.init_app(app)
-    login_manager.init_app(app)
     csrf.init_app(app)
+    # Service (provider) endpoints are GET-only JSON; exempt them from CSRF.
+    from .service import bp as service_bp
+
+    csrf.exempt(service_bp)
 
     from . import models  # noqa: F401  (register models with SQLAlchemy)
-    from .auth import bp as auth_bp
     from .files import bp as files_bp
 
-    app.register_blueprint(auth_bp)
     app.register_blueprint(files_bp)
+    app.register_blueprint(service_bp)
 
     with app.app_context():
         _init_db()
@@ -52,7 +54,7 @@ def _init_db() -> None:
 
 
 def _ensure_dirs(app: Flask) -> None:
-    """Create the instance, upload, and tile-cache directories if missing."""
+    """Create the upload, tile-cache, and database directories if missing."""
 
     for key in ("UPLOAD_DIR", "TILE_CACHE_DIR"):
         value = app.config.get(key)

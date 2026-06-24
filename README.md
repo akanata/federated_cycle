@@ -83,47 +83,67 @@ python examples/render_example.py    # writes examples/cycle.png
 - **`renderer`** stitches the tiles into the canvas, draws the route polyline, and
   adds start/end markers.
 
-## Web app
+## Web app (OpenHost)
 
-A multi-user Flask app (`webapp/`) wraps the library so users can log in, store their
-own FIT files privately, and render routes from the browser.
+A Flask app (`webapp/`) wraps the library and is designed to run on
+[OpenHost](https://imbue-openhost.github.io/openhost/), which handles identity at the
+platform layer. It is **single-owner** — OpenHost authenticates the compute-space owner, so
+the app has no accounts/login of its own.
 
-- **Accounts with 2FA** — registration enrolls a mandatory TOTP authenticator
-  (Google Authenticator, Authy, 1Password…); login is two-step (password → 6-digit code).
-- **Private per-user storage** — FIT files live under `instance/uploads/<user_id>/`, with
-  metadata in a SQLite DB; every query is scoped to the logged-in user.
-- **Upload + select** — a dashboard form uploads `.fit` files and lists your rides, each
-  with a Render action that displays the route-over-map image.
+- **Upload + render** — a dashboard form uploads `.fit` files; each ride has a Render action
+  showing the route-over-map image. Files are stored under the owner's persistent data dir.
+- **Workout provider** — the app registers as a provider of OpenHost's
+  [health-data service](https://github.com/imbue-openhost/health-data-service-spec) and serves
+  each uploaded FIT file as a **Workout** (a cycling ride becomes a `CyclingWorkout`, with the
+  GPS track as a GPX 1.1 `route_gpx` and heart-rate/distance/speed/elevation metrics).
+
+### Deploy on OpenHost
+
+`openhost.toml` declares the container, persistent storage, and the provided service:
+
+```toml
+[[services.v2.provides]]
+service = "github.com/imbue-openhost/openhost/services/health-data"
+version = "0.1.0"
+endpoint = "/api/"
+```
+
+```bash
+oh app deploy https://github.com/akanata/federated_cycle --wait
+```
+
+OpenHost injects `OPENHOST_APP_DATA_DIR`, `OPENHOST_SQLITE_MAIN`, `OPENHOST_OWNER_USERNAME`
+and `OPENHOST_APP_NAME`, which the app reads automatically.
+
+### Provider API
+
+Consumer apps reach these through the OpenHost router (auth handled by the platform):
+
+| Endpoint | Returns |
+|----------|---------|
+| `GET /api/v1/workouts` | all rides as Workouts (filters: `workout_type,start,end,limit`) |
+| `GET /api/v1/workouts/{id}` | one ride (by FIT-file id) |
+| `GET /api/v1/metrics` | the metric catalog this provider serves |
+| `GET /api/v1/time-series`, `/api/v1/sleep-sessions` | `[]` (not held here) |
+
+### Run locally
 
 ```bash
 pip install -e ".[web]"
 SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')" python -m webapp
-# open http://127.0.0.1:5000
+# open http://127.0.0.1:5000 ; Workouts at /api/v1/workouts
 ```
 
-Key settings (env vars): `SECRET_KEY`, `DATABASE_URL`, `UPLOAD_DIR`, `TILE_URL`,
-`TOTP_ISSUER`, `SESSION_COOKIE_SECURE=1` (behind HTTPS in production). The app stores TOTP
-secrets in the database in plaintext for now — encrypting them at rest is a planned
-follow-up, along with password reset and async rendering.
-
-### Run with Docker
-
-The web app ships with a `Dockerfile` (gunicorn, non-root user, healthcheck) and a
-`docker-compose.yml` that persists the database, uploads and tile cache in a named volume.
+Or via Docker (gunicorn, non-root, healthcheck); data persists in a named volume:
 
 ```bash
 export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
-docker compose up --build      # serves on http://localhost:5000
+docker compose up --build      # http://localhost:5000
 ```
 
-`SECRET_KEY` is required — compose refuses to start without it. Put it (and optional
-`TOTP_ISSUER`, `SESSION_COOKIE_SECURE=1`) in a `.env` file beside the compose file to avoid
-re-exporting. Without compose:
-
-```bash
-docker build -t federated-cycle-web .
-docker run -p 5000:5000 -e SECRET_KEY=... -v fitdata:/app/instance federated-cycle-web
-```
+> The health-data spec is still in design; the Workout JSON is hand-rolled to match its
+> documented field names and is covered by tests, so any spec changes are localized to
+> `webapp/workouts.py`.
 
 ## Notes
 
