@@ -21,6 +21,9 @@ class Config:
         "DATABASE_URL", f"sqlite:///{INSTANCE_DIR / 'app.db'}"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # Wait up to 15s for SQLite write locks instead of failing instantly, so
+    # concurrent gunicorn workers don't hit "database is locked".
+    SQLALCHEMY_ENGINE_OPTIONS = {"connect_args": {"timeout": 15}}
 
     # Where uploaded FIT files and rendered PNGs live (one sub-dir per user).
     UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR", INSTANCE_DIR / "uploads"))

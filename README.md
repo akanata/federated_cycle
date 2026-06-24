@@ -106,6 +106,25 @@ Key settings (env vars): `SECRET_KEY`, `DATABASE_URL`, `UPLOAD_DIR`, `TILE_URL`,
 secrets in the database in plaintext for now — encrypting them at rest is a planned
 follow-up, along with password reset and async rendering.
 
+### Run with Docker
+
+The web app ships with a `Dockerfile` (gunicorn, non-root user, healthcheck) and a
+`docker-compose.yml` that persists the database, uploads and tile cache in a named volume.
+
+```bash
+export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+docker compose up --build      # serves on http://localhost:5000
+```
+
+`SECRET_KEY` is required — compose refuses to start without it. Put it (and optional
+`TOTP_ISSUER`, `SESSION_COOKIE_SECURE=1`) in a `.env` file beside the compose file to avoid
+re-exporting. Without compose:
+
+```bash
+docker build -t federated-cycle-web .
+docker run -p 5000:5000 -e SECRET_KEY=... -v fitdata:/app/instance federated-cycle-web
+```
+
 ## Notes
 
 - Rendering needs network access to fetch map tiles; downloaded tiles are cached under

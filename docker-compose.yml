@@ -1,0 +1,20 @@
+services:
+  web:
+    build: .
+    image: federated-cycle-web
+    ports:
+      - "5000:5000"
+    environment:
+      # Required. Generate one with:
+      #   python -c "import secrets; print(secrets.token_hex(32))"
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY (see README) before starting}
+      TOTP_ISSUER: ${TOTP_ISSUER:-FederatedCycle}
+      # Set to 1 when serving over HTTPS so session cookies are marked Secure.
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-0}
+    volumes:
+      # Persists the SQLite DB, uploaded FIT files and the tile cache.
+      - fitdata:/app/instance
+    restart: unless-stopped
+
+volumes:
+  fitdata:

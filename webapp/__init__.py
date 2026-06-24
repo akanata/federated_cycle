@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Optional, Type
 
 from flask import Flask
+from sqlalchemy.exc import OperationalError
 
 from .config import Config
 from .extensions import csrf, db, login_manager
@@ -29,9 +30,25 @@ def create_app(config: Optional[Type[Config]] = None) -> Flask:
     app.register_blueprint(files_bp)
 
     with app.app_context():
-        db.create_all()
+        _init_db()
 
     return app
+
+
+def _init_db() -> None:
+    """Create tables if missing, tolerating a cross-process first-boot race.
+
+    Under multiple gunicorn workers, two processes can both find an empty SQLite
+    file and race to ``CREATE TABLE``; the loser sees "table already exists". The
+    desired state (tables present) still holds, so that specific error is ignored
+    while anything else (e.g. a permissions/disk problem) is re-raised.
+    """
+
+    try:
+        db.create_all()
+    except OperationalError as exc:
+        if "already exists" not in str(exc).lower():
+            raise
 
 
 def _ensure_dirs(app: Flask) -> None:

@@ -1,0 +1,26 @@
+# Version control / CI
+.git
+.gitignore
+
+# Local Python environments and caches
+.venv
+venv
+__pycache__
+*.py[cod]
+*.egg-info
+.pytest_cache
+
+# Runtime data — never bake into the image
+instance/
+.tile_cache/
+*.png
+*.jpg
+*.jpeg
+
+# Not needed at runtime
+tests/
+examples/
+conftest.py
+Dockerfile
+.dockerignore
+docker-compose.yml
