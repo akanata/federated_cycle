@@ -36,14 +36,14 @@ def _parse_dt(value: Optional[str]) -> Optional[datetime]:
         return None
 
 
-def _workout_for(fit: FitFile) -> dict:
+def _workout_for(fit: FitFile, *, detail: bool) -> dict:
     activity = parse_activity(storage.fit_path(fit.stored_name))
-    return build_workout(activity, id=str(fit.id), source=_source())
+    return build_workout(activity, id=str(fit.id), source=_source(), detail=detail)
 
 
 @bp.get("/v1/metrics")
 def list_metrics():
-    return jsonify(metric_catalog())
+    return jsonify({"metrics": metric_catalog()})
 
 
 @bp.get("/v1/workouts")
@@ -64,10 +64,11 @@ def list_workouts():
         query = query.filter(FitFile.started_at <= _naive_utc(end))
 
     files = query.order_by(FitFile.started_at.desc()).all()
-    workouts = [_workout_for(f) for f in files]
+    # The list endpoint returns summaries (scalars only); detail is per-id.
+    workouts = [_workout_for(f, detail=False) for f in files]
     if limit is not None:
         workouts = workouts[: max(0, limit)]
-    return jsonify(workouts)
+    return jsonify({"data": workouts})
 
 
 @bp.get("/v1/workouts/<int:workout_id>")
@@ -75,19 +76,23 @@ def get_workout(workout_id: int):
     fit = db.session.get(FitFile, workout_id)
     if fit is None:
         return jsonify({"error": "not_found"}), 404
-    return jsonify(_workout_for(fit))
+    return jsonify(_workout_for(fit, detail=True))
 
 
-# We hold workout data only; advertise these so consumers get an empty 200
-# rather than a 404 when probing the service.
+# We hold workout data only. Return correctly-shaped empties so consumers that
+# also query other health metrics get valid (empty) responses, not errors.
 @bp.get("/v1/time-series")
 def time_series():
-    return jsonify([])
+    metric = request.args.get("metric", "")
+    return jsonify(
+        {"metric_id": metric, "display_name": metric, "unit": None,
+         "samples": [], "source": _source()}
+    )
 
 
 @bp.get("/v1/sleep-sessions")
 def sleep_sessions():
-    return jsonify([])
+    return jsonify({"data": []})
 
 
 def _naive_utc(dt: datetime) -> datetime:

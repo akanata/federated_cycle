@@ -56,6 +56,15 @@ def test_missing_calories_defaults_to_zero(monkeypatch):
     assert w["calories"]["value"] == 0.0
 
 
+def test_summary_omits_series_and_route():
+    activity = parse_activity(SAMPLE_FIT)
+    summary = build_workout(activity, id="1", source="src", detail=False)
+    # Required scalars stay; series + route are dropped.
+    assert summary["duration"] and summary["distance"]
+    assert "heart_rate" not in summary
+    assert "route_gpx" not in summary
+
+
 # ---------------------------------------------------------------------------
 # Provider API endpoints
 # ---------------------------------------------------------------------------
@@ -85,34 +94,42 @@ def _upload(client):
 def test_metrics_endpoint(client):
     resp = client.get("/api/v1/metrics")
     assert resp.status_code == 200
-    catalog = resp.get_json()
+    catalog = resp.get_json()["metrics"]  # spec client reads resp.json()["metrics"]
     ids = {m["metric_id"] for m in catalog}
     assert {"duration", "distance", "heart_rate"} <= ids
     assert all({"metric_id", "display_name", "kind", "unit"} <= set(m) for m in catalog)
 
 
-def test_list_and_get_workout(client):
+def test_list_returns_summaries_under_data(client):
     file_id = _upload(client)
 
-    listed = client.get("/api/v1/workouts").get_json()
+    # The spec client reads resp.json()["data"]; the list holds summaries only.
+    listed = client.get("/api/v1/workouts").get_json()["data"]
     assert len(listed) == 1
     assert listed[0]["id"] == str(file_id)
     assert listed[0]["workout_type"] == "cycling"
+    assert "distance" in listed[0]              # scalar present
+    assert "route_gpx" not in listed[0]         # no route in summary
+    assert "heart_rate" not in listed[0]        # no series in summary
 
+
+def test_get_workout_returns_full_detail(client):
+    file_id = _upload(client)
     single = client.get(f"/api/v1/workouts/{file_id}").get_json()
     assert single["id"] == str(file_id)
-    assert "route_gpx" in single
+    assert "route_gpx" in single                # detail has the GPS route
+    assert single["heart_rate"]["samples"]      # detail has the HR series
 
 
 def test_workout_type_filter(client):
     _upload(client)
-    assert len(client.get("/api/v1/workouts?workout_type=cycling").get_json()) == 1
-    assert client.get("/api/v1/workouts?workout_type=running").get_json() == []
+    assert len(client.get("/api/v1/workouts?workout_type=cycling").get_json()["data"]) == 1
+    assert client.get("/api/v1/workouts?workout_type=running").get_json()["data"] == []
 
 
 def test_limit_filter(client):
     _upload(client)
-    assert client.get("/api/v1/workouts?limit=0").get_json() == []
+    assert client.get("/api/v1/workouts?limit=0").get_json()["data"] == []
 
 
 def test_unknown_workout_404(client):
@@ -121,5 +138,8 @@ def test_unknown_workout_404(client):
 
 
 def test_empty_timeseries_and_sleep(client):
-    assert client.get("/api/v1/time-series").get_json() == []
-    assert client.get("/api/v1/sleep-sessions").get_json() == []
+    # time-series structures into a single TimeSeries object (empty samples).
+    ts = client.get("/api/v1/time-series?metric=heart_rate").get_json()
+    assert ts["metric_id"] == "heart_rate" and ts["samples"] == []
+    # sleep-sessions is wrapped under "data".
+    assert client.get("/api/v1/sleep-sessions").get_json() == {"data": []}

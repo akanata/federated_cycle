@@ -94,8 +94,14 @@ def _duration_seconds(activity: Activity) -> float:
     return 0.0
 
 
-def build_workout(activity: Activity, *, id: str, source: str) -> dict:
-    """Build the Workout JSON for ``activity``. ``id`` identifies the workout."""
+def build_workout(activity: Activity, *, id: str, source: str, detail: bool = True) -> dict:
+    """Build the Workout JSON for ``activity``. ``id`` identifies the workout.
+
+    With ``detail=False`` the result is a *summary*: scalar metrics only, with no
+    per-sample time series (heart rate/power/cadence) or GPS route — this is what
+    the ``/v1/workouts`` list endpoint returns per the spec. ``detail=True`` (the
+    single-workout endpoint) adds the series and the GPX route.
+    """
 
     s = activity.summary
     workout_type = SPORT_TO_WORKOUT_TYPE.get(s.sport or "", "other")
@@ -112,12 +118,11 @@ def build_workout(activity: Activity, *, id: str, source: str) -> dict:
         "source": source,
     }
 
-    # Optional metrics — included only when the FIT actually carried them.
-    optional = {
+    # Optional scalar metrics — included only when the FIT actually carried them.
+    scalars = {
         "average_heart_rate": _scalar("average_heart_rate", "Avg Heart Rate", "bpm", s.avg_heart_rate, source),
         "max_heart_rate": _scalar("max_heart_rate", "Max Heart Rate", "bpm", s.max_heart_rate, source),
         "lowest_heart_rate": _scalar("lowest_heart_rate", "Lowest Heart Rate", "bpm", s.min_heart_rate, source),
-        "heart_rate": _series("heart_rate", "Heart Rate", "bpm", activity.heart_rate, source),
         "temperature": _scalar("temperature", "Temperature", "°C", s.avg_temperature, source),
         # DistanceWorkout fields.
         "distance": _scalar("distance", "Distance", "m", s.total_distance, source),
@@ -125,18 +130,23 @@ def build_workout(activity: Activity, *, id: str, source: str) -> dict:
         "max_speed": _scalar("speed", "Speed", "m/s", s.max_speed, source),
         "elevation_gain": _scalar("distance", "Distance", "m", s.total_ascent, source),
         "elevation_loss": _scalar("distance", "Distance", "m", s.total_descent, source),
-        # CyclingWorkout fields.
-        "power": _series("power", "Power", "W", activity.power, source),
+        # CyclingWorkout scalar fields.
         "average_power": _scalar("average_power", "Avg Power", "W", s.avg_power, source),
         "max_power": _scalar("max_power", "Max Power", "W", s.max_power, source),
-        "cadence": _series("cadence", "Cadence", "rpm", activity.cadence, source),
         "average_cadence": _scalar("average_cadence", "Avg Cadence", "rpm", s.avg_cadence, source),
         "max_cadence": _scalar("max_cadence", "Max Cadence", "rpm", s.max_cadence, source),
     }
-    workout.update({k: v for k, v in optional.items() if v is not None})
+    workout.update({k: v for k, v in scalars.items() if v is not None})
 
-    # GPS track as a GPX 1.1 document, when recorded.
-    if activity.track:
-        workout["route_gpx"] = to_gpx(activity.track, name=f"workout-{id}")
+    if detail:
+        # Per-sample time series and the GPS route — full detail only.
+        series = {
+            "heart_rate": _series("heart_rate", "Heart Rate", "bpm", activity.heart_rate, source),
+            "power": _series("power", "Power", "W", activity.power, source),
+            "cadence": _series("cadence", "Cadence", "rpm", activity.cadence, source),
+        }
+        workout.update({k: v for k, v in series.items() if v is not None})
+        if activity.track:
+            workout["route_gpx"] = to_gpx(activity.track, name=f"workout-{id}")
 
     return workout
