@@ -103,7 +103,7 @@ the app has no accounts/login of its own.
 
 ```toml
 [[services.v2.provides]]
-service = "github.com/imbue-openhost/openhost/services/health-data"
+service = "github.com/imbue-openhost/health-data-service-spec"
 version = "0.1.0"
 endpoint = "/api/"
 ```
