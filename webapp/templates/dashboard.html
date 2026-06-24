@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Your rides · Federated Cycle{% endblock %}
+{% block content %}
+<div class="grid">
+  <section class="card">
+    <h1>Upload a ride</h1>
+    <p class="muted">Add a <code>.fit</code> activity file to your private library.</p>
+    <form method="post" action="{{ url_for('files.upload') }}" enctype="multipart/form-data">
+      {{ upload_form.hidden_tag() }}
+      <div class="form-row">
+        {{ upload_form.fit_file.label }}
+        {{ upload_form.fit_file(class="input") }}
+      </div>
+      {{ upload_form.submit(class="btn primary") }}
+    </form>
+  </section>
+
+  <section class="card">
+    <h1>Your rides</h1>
+    {% if files %}
+      <ul class="file-list">
+        {% for file in files %}
+          <li class="file">
+            <div class="file-meta">
+              <span class="file-name">{{ file.original_filename }}</span>
+              <span class="muted">
+                {{ file.point_count }} points ·
+                {{ (file.size_bytes / 1024) | round(1) }} KB ·
+                {{ file.uploaded_at.strftime('%Y-%m-%d %H:%M') }}
+              </span>
+            </div>
+            <div class="file-actions">
+              <a class="btn" href="{{ url_for('files.view', file_id=file.id) }}">Render</a>
+              <form class="inline" method="post"
+                    action="{{ url_for('files.delete', file_id=file.id) }}"
+                    onsubmit="return confirm('Delete {{ file.original_filename }}?');">
+                {{ delete_form.hidden_tag() }}
+                <button class="btn danger" type="submit">Delete</button>
+              </form>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">No rides yet. Upload a FIT file to get started.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

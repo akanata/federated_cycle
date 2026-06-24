@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% from "_macros.html" import field %}
+{% block title %}Verify · Federated Cycle{% endblock %}
+{% block content %}
+<div class="card narrow">
+  <h1>Enter your authentication code</h1>
+  <p class="muted">Open your authenticator app and enter the current 6-digit code.</p>
+  <form method="post" novalidate>
+    {{ form.hidden_tag() }}
+    {{ field(form.code, autocomplete="one-time-code", inputmode="numeric", autofocus=true) }}
+    {{ form.submit(class="btn primary") }}
+  </form>
+</div>
+{% endblock %}

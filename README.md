@@ -83,10 +83,33 @@ python examples/render_example.py    # writes examples/cycle.png
 - **`renderer`** stitches the tiles into the canvas, draws the route polyline, and
   adds start/end markers.
 
+## Web app
+
+A multi-user Flask app (`webapp/`) wraps the library so users can log in, store their
+own FIT files privately, and render routes from the browser.
+
+- **Accounts with 2FA** — registration enrolls a mandatory TOTP authenticator
+  (Google Authenticator, Authy, 1Password…); login is two-step (password → 6-digit code).
+- **Private per-user storage** — FIT files live under `instance/uploads/<user_id>/`, with
+  metadata in a SQLite DB; every query is scoped to the logged-in user.
+- **Upload + select** — a dashboard form uploads `.fit` files and lists your rides, each
+  with a Render action that displays the route-over-map image.
+
+```bash
+pip install -e ".[web]"
+SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')" python -m webapp
+# open http://127.0.0.1:5000
+```
+
+Key settings (env vars): `SECRET_KEY`, `DATABASE_URL`, `UPLOAD_DIR`, `TILE_URL`,
+`TOTP_ISSUER`, `SESSION_COOKIE_SECURE=1` (behind HTTPS in production). The app stores TOTP
+secrets in the database in plaintext for now — encrypting them at rest is a planned
+follow-up, along with password reset and async rendering.
+
 ## Notes
 
 - Rendering needs network access to fetch map tiles; downloaded tiles are cached under
-  `.tile_cache/`. Please respect the
+  `.tile_cache/` (or `instance/tile_cache/` for the web app). Please respect the
   [OSM tile usage policy](https://operations.osmfoundation.org/policies/tiles/) — set a
   descriptive `User-Agent` and avoid bulk downloads.
 - Tests run fully offline (a fake tile provider and a mocked FIT reader):
