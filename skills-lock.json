@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "openhost-context": {
+      "source": "imbue-openhost/openhost",
+      "sourceType": "github",
+      "skillPath": "skills/openhost-context/SKILL.md",
+      "computedHash": "a11857737988a512800723d1098c807c5d74b72fa378d1f27d99c2efb56639e1"
+    }
+  }
+}

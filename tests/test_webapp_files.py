@@ -109,3 +109,32 @@ def test_delete_removes_record_and_files(client, app):
 def test_missing_file_404(client):
     assert client.get("/files/999/view").status_code == 404
     assert client.get("/files/999/image.png").status_code == 404
+
+
+def test_proxied_upload_passes_csrf(tmp_path):
+    """Regression: behind a proxy (HTTPS + mismatched Referer/Host) a token-valid
+    POST must not 400. WTF_CSRF_SSL_STRICT=False disables only the origin check."""
+    import re
+
+    class Cfg(TestConfig):
+        WTF_CSRF_ENABLED = True  # re-enable CSRF for this test
+        UPLOAD_DIR = tmp_path / "uploads"
+        TILE_CACHE_DIR = tmp_path / "tiles"
+
+    app = create_app(Cfg)
+    assert app.config["WTF_CSRF_SSL_STRICT"] is False
+    c = app.test_client()
+
+    token = re.search(rb'name="csrf_token"[^>]*value="([^"]+)"', c.get("/").data).group(1).decode()
+    data = {
+        "csrf_token": token,
+        "fit_file": (io.BytesIO(SAMPLE_FIT.read_bytes()), "cycle.fit"),
+    }
+    resp = c.post(
+        "/upload",
+        data=data,
+        content_type="multipart/form-data",
+        headers={"Referer": "https://some-other-host.example/"},  # mismatched on purpose
+        environ_overrides={"wsgi.url_scheme": "https"},  # simulate the router's HTTPS
+    )
+    assert resp.status_code == 302  # redirect back to dashboard, not 400

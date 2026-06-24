@@ -59,6 +59,11 @@ class Config:
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "0") == "1"
 
+    # Behind OpenHost's router the app sees HTTPS but a forwarded internal Host,
+    # so Flask-WTF's strict Referer/host origin check rejects valid POSTs. Disable
+    # just that check; token-based CSRF validation (form field vs session) stays on.
+    WTF_CSRF_SSL_STRICT = False
+
 
 class TestConfig(Config):
     TESTING = True
