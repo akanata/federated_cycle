@@ -18,15 +18,22 @@
   <section class="card">
     <h1>Your rides</h1>
     {% if files %}
+      <div class="sortbar">
+        <span class="muted">Sort:</span>
+        {% for key, label in sort_options %}
+          <a class="sort-link{% if key == sort %} active{% endif %}"
+             href="{{ url_for('files.dashboard', sort=key) }}">{{ label }}</a>
+        {% endfor %}
+      </div>
       <ul class="file-list">
         {% for file in files %}
           <li class="file">
             <div class="file-meta">
               <span class="file-name">{{ file.original_filename }}</span>
               <span class="muted">
-                {{ file.point_count }} points ·
-                {{ (file.size_bytes / 1024) | round(1) }} KB ·
-                {{ file.uploaded_at.strftime('%Y-%m-%d %H:%M') }}
+                {{ ((file.distance_m or 0) / 1000) | round(1) }} km ·
+                {{ file.point_count }} pts ·
+                {{ (file.started_at or file.uploaded_at).strftime('%Y-%m-%d') }}
               </span>
             </div>
             <div class="file-actions">

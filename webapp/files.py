@@ -6,12 +6,16 @@ request reaches here, so there is no per-request login or ownership scoping.
 
 from __future__ import annotations
 
+from datetime import timezone
+
 from flask import (
     Blueprint,
     abort,
+    current_app,
     flash,
     redirect,
     render_template,
+    request,
     send_file,
     url_for,
 )
@@ -19,11 +23,45 @@ from flask import (
 from fit_route_map import parse_activity
 
 from . import storage
+from .analysis import hr_zone_intensity
 from .extensions import db
 from .forms import DeleteForm, UploadForm
 from .models import FitFile
 
 bp = Blueprint("files", __name__)
+
+# (key, label) pairs shown as the dashboard sort controls.
+SORT_OPTIONS = [
+    ("latest", "Latest"),
+    ("earliest", "Earliest"),
+    ("short_long", "Short → Long"),
+    ("long_short", "Long → Short"),
+    ("most_intense", "Most intense"),
+    ("most_chill", "Most chill"),
+]
+DEFAULT_SORT = "latest"
+
+
+def _ride_ts(f: FitFile) -> float:
+    """Ride date as an epoch float (started_at, else upload time); 0 if unknown."""
+
+    dt = f.started_at or f.uploaded_at
+    if dt is None:
+        return 0.0
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.timestamp()
+
+
+# key -> (sort value, reverse?). distance_m/intensity are floats after backfill.
+_SORT_KEYS = {
+    "short_long": (lambda f: f.distance_m or 0.0, False),
+    "long_short": (lambda f: f.distance_m or 0.0, True),
+    "most_intense": (lambda f: f.intensity or 0.0, True),
+    "most_chill": (lambda f: f.intensity or 0.0, False),
+    "latest": (_ride_ts, True),
+    "earliest": (_ride_ts, False),
+}
 
 
 def _get_or_404(file_id: int) -> FitFile:
@@ -33,14 +71,48 @@ def _get_or_404(file_id: int) -> FitFile:
     return fit
 
 
+def _backfill_metrics(files: list[FitFile]) -> None:
+    """Populate distance_m/intensity for any rows missing them (e.g. older uploads).
+
+    New uploads compute these up front; this catches rows created before the
+    columns existed. Each file is parsed at most once, then the values persist.
+    """
+
+    dirty = False
+    max_hr = current_app.config["MAX_HR"]
+    for f in files:
+        if f.distance_m is not None and f.intensity is not None:
+            continue
+        try:
+            activity = parse_activity(storage.fit_path(f.stored_name))
+            f.distance_m = activity.summary.total_distance or 0.0
+            f.intensity = hr_zone_intensity(activity.heart_rate, max_hr)
+        except Exception:
+            f.distance_m = f.distance_m or 0.0
+            f.intensity = f.intensity or 0.0
+        dirty = True
+    if dirty:
+        db.session.commit()
+
+
 @bp.route("/", methods=["GET"])
 def dashboard():
-    files = FitFile.query.order_by(FitFile.uploaded_at.desc()).all()
+    sort = request.args.get("sort", DEFAULT_SORT)
+    if sort not in _SORT_KEYS:
+        sort = DEFAULT_SORT
+
+    files = FitFile.query.all()
+    _backfill_metrics(files)
+    key_fn, reverse = _SORT_KEYS[sort]
+    files.sort(key=key_fn, reverse=reverse)
+
     return render_template(
         "dashboard.html",
         files=files,
         upload_form=UploadForm(),
         delete_form=DeleteForm(),
+        sort=sort,
+        sort_options=SORT_OPTIONS,
     )
 
 
@@ -77,6 +149,8 @@ def upload():
         point_count=len(activity.track),
         sport=activity.summary.sport,
         started_at=activity.summary.start_time,
+        distance_m=activity.summary.total_distance or 0.0,
+        intensity=hr_zone_intensity(activity.heart_rate, current_app.config["MAX_HR"]),
     )
     db.session.add(fit)
     db.session.commit()

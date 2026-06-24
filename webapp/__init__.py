@@ -33,8 +33,34 @@ def create_app(config: Optional[Type[Config]] = None) -> Flask:
 
     with app.app_context():
         _init_db()
+        _migrate_schema()
 
     return app
+
+
+def _migrate_schema() -> None:
+    """Add columns introduced after a deployment's DB was first created.
+
+    We use ``create_all`` (no migration framework), so new model columns must be
+    back-filled onto an existing SQLite table with ``ALTER TABLE ADD COLUMN``.
+    Idempotent and safe under concurrent workers (ignores duplicate-column races).
+    """
+
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(db.engine)
+    if "fit_files" not in inspector.get_table_names():
+        return
+    existing = {c["name"] for c in inspector.get_columns("fit_files")}
+    for column, ddl in (("distance_m", "FLOAT"), ("intensity", "FLOAT")):
+        if column in existing:
+            continue
+        try:
+            with db.engine.begin() as conn:
+                conn.execute(text(f"ALTER TABLE fit_files ADD COLUMN {column} {ddl}"))
+        except OperationalError as exc:
+            if "duplicate column" not in str(exc).lower():
+                raise
 
 
 def _init_db() -> None:

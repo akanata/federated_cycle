@@ -54,6 +54,9 @@ class Config:
     # Identifies this app as the data source in emitted Workouts.
     WORKOUT_SOURCE = os.environ.get("OPENHOST_APP_NAME", "fit-route-map")
 
+    # Reference max heart rate for zone-based intensity (used to sort rides).
+    MAX_HR = float(os.environ.get("MAX_HR", "190"))
+
     # Session cookie hardening.
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"

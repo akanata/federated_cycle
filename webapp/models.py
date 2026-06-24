@@ -25,7 +25,9 @@ class FitFile(db.Model):
     stored_name = db.Column(db.String(64), unique=True, nullable=False)
     size_bytes = db.Column(db.Integer, nullable=False)
     point_count = db.Column(db.Integer, nullable=False, default=0)
-    # Cached from the FIT session for cheap Workout listing/filtering.
+    # Cached from the FIT session for cheap Workout listing/filtering and sorting.
     sport = db.Column(db.String(32), nullable=True)
     started_at = db.Column(db.DateTime, nullable=True)
+    distance_m = db.Column(db.Float, nullable=True)  # total ride distance (metres)
+    intensity = db.Column(db.Float, nullable=True)  # HR-zone-weighted effort score
     uploaded_at = db.Column(db.DateTime, nullable=False, default=_utcnow)

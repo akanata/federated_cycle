@@ -86,6 +86,17 @@ label { font-weight: 600; font-size: 0.9rem; }
 
 .field-errors { color: var(--err-ink); font-size: 0.85rem; margin: 0.2rem 0 0; padding-left: 1.1rem; }
 
+.sortbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem;
+  margin-bottom: 0.9rem; padding-bottom: 0.8rem; border-bottom: 1px solid var(--border);
+}
+.sort-link {
+  font-size: 0.85rem; text-decoration: none; color: var(--ink);
+  padding: 0.25rem 0.6rem; border: 1px solid var(--border); border-radius: 999px;
+}
+.sort-link:hover { background: #f0f1f3; }
+.sort-link.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
 .file-list { list-style: none; padding: 0; margin: 0; }
 .file {
   display: flex; align-items: center; justify-content: space-between;
