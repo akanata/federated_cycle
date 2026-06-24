@@ -24,6 +24,14 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=7"]
+web = [
+    "Flask>=3.0",
+    "Flask-SQLAlchemy>=3.1",
+    "Flask-Login>=0.6",
+    "Flask-WTF>=1.2",
+    "pyotp>=2.9",
+    "qrcode[pil]>=7.4",
+]
 
 [project.urls]
 Homepage = "https://github.com/"

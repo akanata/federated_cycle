@@ -10,6 +10,9 @@ dist/
 .venv/
 venv/
 
+# Flask instance folder (SQLite DB, uploads, tile cache)
+instance/
+
 # Tile cache + rendered output
 .tile_cache/
 *.png

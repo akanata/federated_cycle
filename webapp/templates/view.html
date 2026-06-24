@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}{{ file.original_filename }} · Federated Cycle{% endblock %}
+{% block content %}
+<div class="card">
+  <h1>{{ file.original_filename }}</h1>
+  <p class="muted">
+    {{ file.point_count }} GPS points · uploaded
+    {{ file.uploaded_at.strftime('%Y-%m-%d %H:%M') }}
+  </p>
+  <div class="render">
+    <img src="{{ url_for('files.render_image', file_id=file.id) }}"
+         alt="Route map for {{ file.original_filename }}" class="route-img">
+  </div>
+  <p><a class="btn" href="{{ url_for('files.dashboard') }}">← Back to your rides</a></p>
+</div>
+{% endblock %}
